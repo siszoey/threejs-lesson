@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>等角矩形贴图</title>
+    <style>
+        html,  body {margin: 0;height: 100%;}
+        #main{
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+        }
+    </style>
+</head>
+<body>
+<div id="main">
+    <canvas id="canvas"></canvas>
+</div>
+
+<script type="module">
+import {ArrowHelper, AxesHelper, BoxBufferGeometry, BufferAttribute, BufferGeometry,CubeTextureLoader, DirectionalLight, DirectionalLightHelper, Geometry, MeshBasicMaterial, Mesh, MeshLambertMaterial, MeshPhongMaterial, Line, LineBasicMaterial, LineLoop, OrthographicCamera, PerspectiveCamera, PlaneBufferGeometry, Points, PointsMaterial, Scene, SpotLight, SpotLightHelper, TextureLoader, Vector3, WebGLCubeRenderTarget, WebGLRenderer, } from 'https://kkb.yxyy.name/three/build/three.module.js'
+import { OrbitControls } from 'https://kkb.yxyy.name/three/examples/jsm/controls/OrbitControls.js';
+
+/*画布*/
+const canvas = document.querySelector('#canvas')
+/*渲染器*/
+const renderer = new WebGLRenderer({canvas, alpha:false})
+
+/*相机*/
+const camera = new PerspectiveCamera(45,  1,  0.01,  10)
+camera.position.set(0, 0, 0.01)
+
+/*场景*/
+const scene = new Scene()
+
+/*贴图加载器*/
+const loader = new TextureLoader();
+const texture = loader.load('./images/sunny.jpg',function(){
+    /*立方体渲染目标*/
+    const rt = new WebGLCubeRenderTarget(texture.image.height)
+    /*将全景图转成等角矩形贴图*/
+    rt.fromEquirectangularTexture(renderer, texture)
+    /*设置场景背景*/
+    scene.background = rt
+
+    resize()
+    render()
+});
+
+/*尺寸更新方法*/
+const resize=Resize('#main', renderer, camera)
+/*响应窗口变化*/
+window.onresize=function () {
+    resize()
+    render()
+};
+
+/*设置渲染器尺寸和相机像素比*/
+function Resize(id, renderer, camera,bgTexture){
+    const wrapper=document.querySelector(id)
+    return function(){
+        const {clientWidth, clientHeight}=wrapper
+        const canvasAspect=clientWidth / clientHeight
+        renderer.setSize(clientWidth,  clientHeight)
+
+        camera.aspect = canvasAspect
+        camera.updateProjectionMatrix()
+    }
+}
+
+const orbitCtrl = new OrbitControls(camera, canvas);
+orbitCtrl.addEventListener('change',function(){
+    render();
+})
+
+
+/*渲染方法*/
+function render(){
+    renderer.render(scene,  camera);
+}
+</script>
+</body>
+</html>
+

@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>vr</title>
+    <style>
+        html,  body {margin: 0;height: 100%;}
+        #main{
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+        }
+    </style>
+</head>
+<body>
+<div id="main">
+    <canvas id="canvas"></canvas>
+</div>
+
+<script type="module">
+    import {ArrowHelper, AxesHelper, BoxBufferGeometry, BufferAttribute, BufferGeometry,CubeTextureLoader, DirectionalLight, DirectionalLightHelper, Geometry, MeshBasicMaterial, Mesh, MeshLambertMaterial, MeshPhongMaterial, Line, LineBasicMaterial, LineLoop, OrthographicCamera, PerspectiveCamera, PlaneBufferGeometry, Points, PointsMaterial, Scene, SpotLight, SpotLightHelper, TextureLoader, Vector3, WebGLCubeRenderTarget, WebGLRenderer, } from 'https://kkb.yxyy.name/three/build/three.module.js'
+
+/*画布*/
+const canvas = document.querySelector('#canvas')
+/*渲染器*/
+const renderer = new WebGLRenderer({canvas, alpha:false})
+
+/*相机*/
+const camera = new PerspectiveCamera(45,  1,  0.01,  10)
+camera.position.set(0, 0, 1)
+
+/*场景*/
+const scene = new Scene()
+/*纹理加载器*/
+const loader = new TextureLoader()
+/*纹理背景*/
+const bgTexture = loader.load('../images/01.jpg', ()=>{
+    resize()
+    render()
+});
+/*设置场景背景*/
+scene.background = bgTexture
+
+/*根据容器尺寸，重置canvas 尺寸和相机的像素比*/
+const resize=Resize('#main', renderer, camera,bgTexture)
+
+/*响应窗口变化*/
+window.onresize=function () {
+    resize()
+    render()
+};
+
+/*设置渲染器尺寸和相机像素比*/
+function Resize(id, renderer, camera,bgTexture){
+    const wrapper=document.querySelector(id)
+    return function(){
+        const {clientWidth, clientHeight}=wrapper
+        const canvasAspect=clientWidth / clientHeight
+        renderer.setSize(clientWidth,  clientHeight)
+
+        camera.aspect = canvasAspect
+        camera.updateProjectionMatrix()
+
+        const {width,height}=bgTexture.image
+        const imageAspect=width/height
+        const aspect = imageAspect / canvasAspect
+        bgTexture.repeat.x = aspect > 1 ? 1 / aspect : 1
+        bgTexture.repeat.y = aspect > 1 ? 1 : aspect
+        bgTexture.offset.x = aspect > 1 ? (1 - 1 / aspect) / 2 : 0
+        bgTexture.offset.y = aspect > 1 ? 0 : (1 - aspect) / 2
+    }
+}
+
+/*渲染方法*/
+function render(){
+    renderer.render(scene,  camera);
+}
+</script>
+</body>
+</html>

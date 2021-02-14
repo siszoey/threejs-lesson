@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>vr</title>
+    <style>
+        html,  body {margin: 0;height: 100%;}
+        #main{
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+        }
+    </style>
+</head>
+<body>
+<div id="main">
+    <canvas id="canvas"></canvas>
+</div>
+
+<script type="module">
+    import {ArrowHelper, AxesHelper, BoxBufferGeometry, BufferAttribute, BufferGeometry,CubeTextureLoader, DirectionalLight, DirectionalLightHelper, Geometry, MeshBasicMaterial, Mesh, MeshLambertMaterial, MeshPhongMaterial, Line, LineBasicMaterial, LineLoop, OrthographicCamera, PerspectiveCamera, PlaneBufferGeometry, Points, PointsMaterial, Scene, SpotLight, SpotLightHelper, TextureLoader, Vector3, WebGLCubeRenderTarget, WebGLRenderer, } from 'https://kkb.yxyy.name/three/build/three.module.js'
+    import { OrbitControls } from 'https://kkb.yxyy.name/three/examples/jsm/controls/OrbitControls.js';
+
+/*画布*/
+const canvas = document.querySelector('#canvas')
+/*渲染器*/
+const renderer = new WebGLRenderer({canvas, alpha:false})
+
+/*相机*/
+const camera = new PerspectiveCamera(45,  1,  0.01,  10)
+camera.position.set(0, 0, 1)
+
+/*场景*/
+const scene = new Scene()
+const loader = new CubeTextureLoader();
+const texture = loader.load([
+    './images/map_r.jpg',
+    './images/map_l.jpg',
+    './images/map_u.jpg',
+    './images/map_d.jpg',
+    './images/map_f.jpg',
+    './images/map_b.jpg',
+],function(){
+    resize()
+    render();
+});
+/*设置场景背景*/
+scene.background = texture
+
+
+const resize=Resize('#main', renderer, camera)
+/*响应窗口变化*/
+window.onresize=function () {
+    resize()
+    render()
+};
+
+/*设置渲染器尺寸和相机像素比*/
+function Resize(id, renderer, camera,bgTexture){
+    const wrapper=document.querySelector(id)
+    return function(){
+        const {clientWidth, clientHeight}=wrapper
+        const canvasAspect=clientWidth / clientHeight
+        renderer.setSize(clientWidth,  clientHeight)
+
+        camera.aspect = canvasAspect
+        camera.updateProjectionMatrix()
+    }
+}
+
+const orbitCtrl = new OrbitControls(camera, canvas);
+orbitCtrl.addEventListener('change',function(){
+    render();
+})
+
+
+/*渲染方法*/
+function render(){
+    renderer.render(scene,  camera);
+}
+</script>
+</body>
+</html>
+
+
+
+<!--
+'./images/map_l.jpg',
+'./images/map_r.jpg',
+'./images/map_u.jpg',
+'./images/map_d.jpg',
+'./images/map_f.jpg',
+'./images/map_b.jpg',
+-->

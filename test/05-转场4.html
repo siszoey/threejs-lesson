@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>标记点定位</title>
+    <style>
+        html,  body {margin: 0;height: 100%;}
+        #main{
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+        }
+
+    </style>
+</head>
+<body>
+<div id="main"></div>
+
+<script type="module">
+import {ArrowHelper, AxesHelper,BackSide , BoxBufferGeometry, BufferAttribute, BufferGeometry,Color, CubeTextureLoader, DirectionalLight, DirectionalLightHelper,DoubleSide,FontLoader,TextGeometry, Geometry,Group, MeshBasicMaterial, Mesh, MeshLambertMaterial, MeshPhongMaterial, Line, LineBasicMaterial, LineLoop, OrthographicCamera, PerspectiveCamera,Plane, PlaneBufferGeometry, Points, PointsMaterial,Ray ,Raycaster ,Scene, ShaderMaterial, Shape, ShapeBufferGeometry, SpotLight, SpotLightHelper, TextureLoader, Vector3,Vector2 , WebGLCubeRenderTarget, WebGLRenderer,WebGLRenderTarget } from 'https://kkb.yxyy.name/three/build/three.module.js'
+import { OrbitControls } from 'https://kkb.yxyy.name/three/examples/jsm/controls/OrbitControls.js'
+import {GUI} from "https://kkb.yxyy.name/gui/dat.gui.module.js"
+
+/*容器*/
+const wrapper=document.querySelector('#main')
+
+/*自定义着色器*/
+const uniforms={
+    tDiffuse1: {
+        value: null
+    },
+    tDiffuse2: {
+        value: null
+    },
+    mixRatio: {
+        value: 0.0
+    }
+}
+const vertexShader=`
+    varying vec2 vUv;
+    void main() {
+        vUv = vec2( uv.x, uv.y );
+        gl_Position = projectionMatrix * modelViewMatrix * vec4( position, 1.0 );
+    }
+`
+const fragmentShader=`
+    uniform float mixRatio;
+    uniform sampler2D tDiffuse1;
+    uniform sampler2D tDiffuse2;
+    varying vec2 vUv;
+    void main() {
+        vec4 texel1 = texture2D( tDiffuse1, vUv );
+		vec4 texel2 = texture2D( tDiffuse2, vUv );
+		gl_FragColor = mix( texel2, texel1, mixRatio );
+    }
+`
+
+const transitionParams = {
+    "useTexture": false,
+    "transition": 0.5,
+    "transitionSpeed": 2.0,
+    "texture": 4,
+    'loopTexture': false,
+    'animateTransition': true,
+    'textureThreshold': 0
+};
+
+class Compose{
+    constructor({
+                    wrapper,
+                    uniforms,
+                    vertexShader,
+                    fragmentShader,
+                    sceneA,
+                    sceneB,
+                }){
+        const {clientWidth:w,clientHeight:h}=wrapper
+        const [hw,hh]=[w/2,h/2]
+        this.renderer=new WebGLRenderer({ antialias: true })
+        this.renderer.setSize(w,h);
+        wrapper.appendChild(this.renderer.domElement)
+        this.scene=new Scene()
+        this.camera = new OrthographicCamera(hw,-hw,hh,-hh,-10,10)
+
+        this.material=new ShaderMaterial({
+            uniforms,
+            vertexShader,
+            fragmentShader
+        })
+        this.geometry = new PlaneBufferGeometry( w,h);
+        const quad = new Mesh( this.geometry,this.material );
+        this.scene.add( quad );
+
+        this.sceneA=sceneA
+        this.sceneB=sceneB
+
+        this.material.uniforms.tDiffuse1.value = sceneA.fbo.texture;
+        this.material.uniforms.tDiffuse2.value = sceneB.fbo.texture;
+    }
+    render(){
+        this.material.uniforms.mixRatio.value = 0.5;
+        this.sceneA.render();
+        this.sceneB.render();
+        this.renderer.setRenderTarget( null );
+        this.renderer.clear();
+        this.renderer.render(this.scene,this.camera)
+    }
+}
+
+const sceneA = new FXScene( "cube",);
+const sceneB = new FXScene( "sphere",0x000000);
+
+/*const sp=new Compose({
+    wrapper,
+    uniforms,
+    vertexShader,
+    fragmentShader,
+    sceneA,
+    sceneB,
+})
+
+sp.render()*/
+
+
+/*const renderer = new WebGLRenderer( { antialias: true } );
+renderer.setSize( window.innerWidth, window.innerHeight );
+wrapper.appendChild( renderer.domElement );
+const transition = new Transition( sceneA, sceneB );
+transition.render()*/
+
+const sp = new Transition();
+sp.render()
+
+
+function FXScene( type,color=0x00acec) {
+    this.camera = new PerspectiveCamera( 45, window.innerWidth / window.innerHeight, 1, 10000 );
+    this.scene = new Scene();
+    this.scene.background=new Color(color)
+    this.fbo = new WebGLRenderTarget( window.innerWidth, window.innerHeight );
+    this.render = function (  ) {
+        sp.renderer.setRenderTarget( this.fbo );
+        sp.renderer.clear();
+        sp.renderer.render( this.scene, this.camera );
+       /* renderer.setRenderTarget( this.fbo );
+        renderer.clear();
+        renderer.render( this.scene, this.camera );*/
+    };
+}
+
+
+function Transition( ) {
+
+    const {clientWidth:w,clientHeight:h}=wrapper
+    const [hw,hh]=[w/2,h/2]
+    this.renderer=new WebGLRenderer({ antialias: true })
+    this.renderer.setSize(w,h);
+    wrapper.appendChild(this.renderer.domElement)
+
+    this.scene=new Scene()
+    this.camera = new OrthographicCamera(-hw,.gitignorehw,hh,-hh,-10,10)
+    this.material=new ShaderMaterial({
+        uniforms,
+        vertexShader,
+        fragmentShader
+    })
+    const geometry = new PlaneBufferGeometry( w,h);
+    const quad = new Mesh( geometry,this.material );
+    this.scene.add( quad );
+
+    this.sceneA=sceneA
+    this.sceneB=sceneB
+
+    this.material.uniforms.tDiffuse1.value = sceneA.fbo.texture;
+    this.material.uniforms.tDiffuse2.value = sceneB.fbo.texture;
+
+    this.render = function ( ) {
+        this.material.uniforms.mixRatio.value = 0.5;
+        this.sceneA.render();
+        this.sceneB.render();
+        this.renderer.setRenderTarget( null );
+        this.renderer.clear();
+        this.renderer.render( this.scene, this.camera );
+
+    };
+
+}
+</script>
+</body>
+</html>
+

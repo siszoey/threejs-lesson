@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>标记点定位</title>
+    <style>
+        html,  body {margin: 0;height: 100%;}
+        #main{
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+        }
+        .tip{
+            background-color: rgba(0,0,0,0.3);
+            border-radius: 3px;
+            color: #fff;
+            position: absolute;
+            padding: 6px 9px;
+            left:-100%;
+            top: -100%;
+            width:40px;
+            text-align: center;
+            font-size: 14px;
+            line-height: 24px;
+        }
+    </style>
+</head>
+<body>
+<div id="main">
+    <div id="woshi" class="tip">卧室</div>
+    <canvas id="canvas"></canvas>
+</div>
+
+<script type="module">
+import {ArrowHelper, AxesHelper,BackSide , BoxBufferGeometry, BufferAttribute, BufferGeometry,CubeTextureLoader, DirectionalLight, DirectionalLightHelper, Geometry, MeshBasicMaterial, Mesh, MeshLambertMaterial, MeshPhongMaterial, Line, LineBasicMaterial, LineLoop, OrthographicCamera, PerspectiveCamera, PlaneBufferGeometry, Points, PointsMaterial, Raycaster ,Scene, SpotLight, SpotLightHelper, TextureLoader, Vector3,Vector2 , WebGLCubeRenderTarget, WebGLRenderer, } from 'https://kkb.yxyy.name/three/build/three.module.js'
+import { OrbitControls } from 'https://kkb.yxyy.name/three/examples/jsm/controls/OrbitControls.js'
+import {GUI} from "https://kkb.yxyy.name/gui/dat.gui.module.js"
+
+/*卧室标记*/
+const wsTip=document.querySelector('#woshi')
+
+/*容器尺寸*/
+let mainW=0
+let mainH=0
+/*画布*/
+const canvas = document.querySelector('#canvas')
+/*渲染器*/
+const renderer = new WebGLRenderer({canvas, alpha:false})
+
+/*相机*/
+const camera = new PerspectiveCamera(60,  1,  0.01,  10)
+camera.position.set(0.01, 0, 0.01)
+
+/*场景*/
+const scene = new Scene()
+
+/*贴图加载器*/
+const loader = new TextureLoader();
+const texture = loader.load('./images/sunny.jpg',function(){
+    /*立方体渲染目标*/
+    const rt = new WebGLCubeRenderTarget(texture.image.height)
+    /*将全景图转成等角矩形贴图*/
+    rt.fromEquirectangularTexture(renderer, texture)
+    /*设置场景背景*/
+    scene.background = rt
+
+    resize()
+    setTipPos()
+    render()
+});
+
+const p1=new Vector3( -1, 0.12, -0.426 )
+
+/*盒子对象*/
+const boxGeo = new BoxBufferGeometry( 200, 200, 200 );
+const boxMat = new MeshBasicMaterial({
+    side:BackSide,
+    transparent:true,
+    opacity:0
+});
+const box = new Mesh( boxGeo, boxMat );
+scene.add( box );
+
+/*尺寸更新方法*/
+const resize=Resize('#main', renderer, camera)
+/*响应窗口变化*/
+window.onresize=function () {
+    resize()
+    setTipPos()
+    render()
+};
+
+/*设置渲染器尺寸和相机像素比*/
+function Resize(id, renderer, camera,bgTexture){
+    const wrapper=document.querySelector(id)
+    return function(){
+        // const {clientWidth, clientHeight}=wrapper
+        [mainW,mainH]=[wrapper.clientWidth,wrapper.clientHeight]
+        const canvasAspect=mainW / mainH
+        renderer.setSize(mainW,  mainH)
+
+        camera.aspect = canvasAspect
+        camera.updateProjectionMatrix()
+    }
+}
+
+const orbitCtrl = new OrbitControls(camera, canvas);
+orbitCtrl.addEventListener('change',function(){
+    setTipPos()
+    render();
+})
+
+// orbitCtrl.autoRotate = true;
+// orbitCtrl.autoRotateSpeed = 0.5;
+orbitCtrl.enableDamping = true;
+orbitCtrl.dampingFactor = 0.06;
+
+!(function ani(){
+    orbitCtrl.update();
+    requestAnimationFrame(ani)
+})()
+
+/*渲染方法*/
+function render(){
+    renderer.render(scene,  camera);
+}
+
+/*设置标记点位置*/
+function setTipPos(){
+    /*世界位转屏幕位*/
+    const vector = p1.clone().project(camera);
+    const halfWidth = mainW / 2
+    const  halfHeight = mainH / 2
+    const angle=p1.angleTo(camera.position)
+    if(angle<Math.PI/4){
+        wsTip.style.visibility='hidden'
+    }else{
+        wsTip.style.visibility='visible'
+        const x=Math.round(vector.x * halfWidth + halfWidth)
+        const y=Math.round(-vector.y * halfHeight + halfHeight)
+        wsTip.style.left=(x-parseInt(wsTip.clientWidth/2))+'px'
+        wsTip.style.top=(y-parseInt(wsTip.clientHeight))+'px'
+    }
+}
+
+const raycaster = new Raycaster();
+const mouse = new Vector2();
+/*对象选择*/
+canvas.addEventListener('dblclick',({clientX,clientY})=>{
+    mouse.x = ( clientX / window.innerWidth ) * 2 - 1;
+    mouse.y = - ( clientY / window.innerHeight ) * 2 + 1;
+    raycaster.setFromCamera( mouse, camera );
+    const intersects = raycaster.intersectObjects( [box] );
+    p1.copy(intersects[0].point)
+    setTipPos()
+    render()
+})
+</script>
+</body>
+</html>
+

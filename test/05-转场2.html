@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>标记点定位</title>
+    <style>
+        html,  body {margin: 0;height: 100%;}
+        #main{
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+        }
+
+    </style>
+</head>
+<body>
+<div id="main"></div>
+
+<script type="module">
+import {ArrowHelper, AxesHelper,BackSide , BoxBufferGeometry, BufferAttribute, BufferGeometry,Color, CubeTextureLoader, DirectionalLight, DirectionalLightHelper,DoubleSide,FontLoader,TextGeometry, Geometry,Group, MeshBasicMaterial, Mesh, MeshLambertMaterial, MeshPhongMaterial, Line, LineBasicMaterial, LineLoop, OrthographicCamera, PerspectiveCamera,Plane, PlaneBufferGeometry, Points, PointsMaterial,Ray ,Raycaster ,Scene, ShaderMaterial, Shape, ShapeBufferGeometry, SpotLight, SpotLightHelper, TextureLoader, Vector3,Vector2 , WebGLCubeRenderTarget, WebGLRenderer,WebGLRenderTarget } from 'https://kkb.yxyy.name/three/build/three.module.js'
+import { OrbitControls } from 'https://kkb.yxyy.name/three/examples/jsm/controls/OrbitControls.js'
+import {GUI} from "https://kkb.yxyy.name/gui/dat.gui.module.js"
+
+const transitionParams = {
+    "useTexture": false,
+    "transition": 0.5,
+    "transitionSpeed": 2.0,
+    "texture": 4,
+    'loopTexture': false,
+    'animateTransition': true,
+    'textureThreshold': 0
+};
+
+const container = document.getElementById( "main" );
+
+const renderer = new WebGLRenderer( { antialias: true } );
+renderer.setSize( window.innerWidth, window.innerHeight );
+container.appendChild( renderer.domElement );
+const sceneA = new FXScene( "cube", 120);
+const sceneB = new FXScene( "sphere",50,0x000000);
+function FXScene( type, fov,color=0x00acec) {
+    this.camera = new PerspectiveCamera( fov, window.innerWidth / window.innerHeight, 1, 10000 );
+    this.scene = new Scene();
+    this.scene.background=new Color(color)
+
+    this.fbo = new WebGLRenderTarget( window.innerWidth, window.innerHeight );
+    this.render = function ( delta, rtt ) {
+        if ( rtt ) {
+            renderer.setRenderTarget( this.fbo );
+            renderer.clear();
+            renderer.render( this.scene, this.camera );
+        } else {
+            renderer.setRenderTarget( null );
+            renderer.render( this.scene, this.camera );
+        }
+    };
+}
+const transition = new Transition( sceneA, sceneB );
+transition.render()
+
+function Transition( sceneA, sceneB ) {
+
+    this.scene = new Scene();
+
+    this.cameraOrtho = new OrthographicCamera( window.innerWidth / - 2, window.innerWidth / 2, window.innerHeight / 2, window.innerHeight / - 2, - 10, 10 );
+
+    this.quadmaterial = new ShaderMaterial( {
+        uniforms: {
+            tDiffuse1: {
+                value: null
+            },
+            tDiffuse2: {
+                value: null
+            },
+            mixRatio: {
+                value: 0.0
+            }
+        },
+        vertexShader:`
+					    varying vec2 vUv;
+					    void main() {
+					        vUv = vec2( uv.x, uv.y );
+					        gl_Position = projectionMatrix * modelViewMatrix * vec4( position, 1.0 );
+					    }
+					`,
+        fragmentShader:`
+					    uniform float mixRatio;
+					    uniform sampler2D tDiffuse1;
+					    uniform sampler2D tDiffuse2;
+					    varying vec2 vUv;
+					    void main() {
+					        vec4 texel1 = texture2D( tDiffuse1, vUv );
+					        vec4 texel2 = texture2D( tDiffuse2, vUv );
+					        gl_FragColor = mix( texel2, texel1, mixRatio );
+					    }
+					`
+
+    } );
+
+    const quadgeometry = new PlaneBufferGeometry( window.innerWidth, window.innerHeight );
+
+    this.quad = new Mesh( quadgeometry, this.quadmaterial );
+    this.scene.add( this.quad );
+
+    // Link both scenes and their FBOs
+    this.sceneA = sceneA;
+    this.sceneB = sceneB;
+
+    this.quadmaterial.uniforms.tDiffuse1.value = sceneA.fbo.texture;
+    this.quadmaterial.uniforms.tDiffuse2.value = sceneB.fbo.texture;
+    this.needChange = false;
+
+    this.render = function ( delta ) {
+        // Transition animation
+        if ( transitionParams.animateTransition ) {
+
+            transitionParams.transition = 0.5;
+            // console.log(t);
+            this.needChange = true;
+        }
+
+        this.quadmaterial.uniforms.mixRatio.value = transitionParams.transition;
+
+        // Prevent render both scenes when it's not necessary
+        if ( transitionParams.transition == 0 ) {
+
+            this.sceneB.render( delta, false );
+
+        } else if ( transitionParams.transition == 1 ) {
+
+            this.sceneA.render( delta, false );
+
+        } else {
+
+            // When 0<transition<1 render transition between two scenes
+
+            this.sceneA.render( delta, true );
+            this.sceneB.render( delta, true );
+            renderer.setRenderTarget( null );
+            renderer.clear();
+            renderer.render( this.scene, this.cameraOrtho );
+
+        }
+
+    };
+
+}
+</script>
+</body>
+</html>
+

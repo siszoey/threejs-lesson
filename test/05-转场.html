@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>标记点定位</title>
+    <style>
+        html,  body {margin: 0;height: 100%;}
+        #main{
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+        }
+
+    </style>
+</head>
+<body>
+<div id="main"></div>
+
+<script type="module">
+import {ArrowHelper, AxesHelper,BackSide , BoxBufferGeometry, BufferAttribute, BufferGeometry,Color, CubeTextureLoader, DirectionalLight, DirectionalLightHelper,DoubleSide,FontLoader,TextGeometry, Geometry,Group, MeshBasicMaterial, Mesh, MeshLambertMaterial, MeshPhongMaterial, Line, LineBasicMaterial, LineLoop, OrthographicCamera, PerspectiveCamera,Plane, PlaneBufferGeometry, Points, PointsMaterial,Ray ,Raycaster ,Scene, ShaderMaterial, Shape, ShapeBufferGeometry, SpotLight, SpotLightHelper, TextureLoader, Vector3,Vector2 , WebGLCubeRenderTarget, WebGLRenderer,WebGLRenderTarget } from 'https://kkb.yxyy.name/three/build/three.module.js'
+import { OrbitControls } from 'https://kkb.yxyy.name/three/examples/jsm/controls/OrbitControls.js'
+import {GUI} from "https://kkb.yxyy.name/gui/dat.gui.module.js"
+
+
+/*
+* wrapper
+* renderer
+* camera
+* scene
+* render()
+* */
+class Compose{
+    static defAttrs=()=>({
+        renderer:new WebGLRenderer(),
+        camera:new OrthographicCamera(-1,1,1,-1,-10,10),
+        scene:new Scene(),
+        quad:null,
+        uniforms:null,
+        vertexShader:null,
+        fragmentShader:null
+
+    })
+    constructor(attrs={}){
+        Object.assign(this,Compose.defAttrs(),attrs)
+        this.init()
+    }
+    init(){
+        const {wrapper,renderer:{domElement}}=this
+        wrapper.appendChild(domElement)
+        this.resize()
+        this.crtPlane()
+    }
+    crtPlane(){
+        const {scene,uniforms,vertexShader,fragmentShader}=this
+        const {clientWidth:w,clientHeight:h}=wrapper
+        const material=new ShaderMaterial({
+            uniforms,
+            vertexShader,
+            fragmentShader
+        })
+        const geometry = new PlaneBufferGeometry( w,h);
+        const quad = new Mesh( geometry, material );
+        scene.add( quad );
+    }
+    resize(){
+        const {wrapper,renderer,camera}=this
+        const {clientWidth:w,clientHeight:h}=wrapper
+        const [hw,hh]=[wrapper.clientWidth/2,wrapper.clientHeight/2]
+        renderer.setSize(w,h)
+        camera.left  = -hw
+        camera.right = hw
+        camera.top = hh
+        camera.bottom = -hh
+        camera.updateProjectionMatrix()
+    }
+    render(){
+        this.renderer.render(this.scene,this.camera)
+    }
+}
+
+/*
+* renderer
+* camera
+* scene
+* render()
+* */
+class Solid{
+    static defAttrs=()=>({
+        renderer:new WebGLRenderTarget(),
+        scene:new Scene()
+    })
+    constructor(attrs){
+        Object.assign(this,Solid.defAttrs(),attrs)
+    }
+    resize(w,h){
+        const {renderer,camera}=this
+        renderer.setSize(w,h)
+        camera.aspect = w/h
+        camera.updateProjectionMatrix()
+    }
+    setVrBackground(texture){
+        const {renderer,scene}=this
+        // const rt = new WebGLCubeRenderTarget(texture.image.height)
+        // rt.fromEquirectangularTexture(renderer, texture)
+        // scene.background = rt
+        scene.background = new Color(0xffff00)
+    }
+    render(renderer){
+        const {scene,camera}=this
+        renderer.setRenderTarget( this.renderer);
+        renderer.clear();
+        renderer.render(scene,camera);
+    }
+}
+
+/*容器*/
+const wrapper=document.querySelector('#main')
+
+/*素材-用于合成*/
+const s1=new Solid({
+    camera:new PerspectiveCamera(60,1,1,1000),
+})
+s1.resize(wrapper.clientWidth,wrapper.clientHeight)
+s1.camera.position.set(0.1, 0, 0.1)
+
+const s2=new Solid({
+    camera:new PerspectiveCamera(60,1,1,1000),
+})
+s2.resize(wrapper.clientWidth,wrapper.clientHeight)
+s2.camera.position.set(0.1, 0, 0.1)
+
+/*自定义着色器*/
+const uniforms={
+    tDiffuse1: {
+        value: null
+    },
+    tDiffuse2: {
+        value: null
+    },
+    mixRatio: {
+        value: 0.0
+    }
+}
+const vertexShader=`
+    varying vec2 vUv;
+    void main() {
+        vUv = vec2( uv.x, uv.y );
+        gl_Position = projectionMatrix * modelViewMatrix * vec4( position, 1.0 );
+    }
+`
+const fragmentShader=`
+    uniform float mixRatio;
+    uniform sampler2D tDiffuse1;
+    varying vec2 vUv;
+    void main() {
+        vec4 texel1 = texture2D( tDiffuse1, vUv );
+        gl_FragColor = texel1;
+    }
+`
+
+/*主图-用于实际渲染*/
+const sp=new Compose({
+    wrapper,
+    uniforms,
+    vertexShader,
+    fragmentShader
+})
+
+const url1='./images/vr01.jpg'
+const url2='./images/vr02.jpg'
+Promise.all([loadImg(url1),loadImg(url2)]).then(([img1,img2])=>{
+    // console.log(img1,img2);
+    s1.setVrBackground(img1)
+    s1.render(sp.renderer)
+    // s2.setVrBackground(img2)
+    // s2.render(sp.renderer)
+    //
+    //
+    sp.uniforms.tDiffuse1.value = s1.renderer.texture;
+    // sp.uniforms.tDiffuse2.value = s2.renderer.texture;
+
+    sp.render()
+
+})
+
+
+
+/*响应窗口变化*/
+/*window.onresize=function () {
+    sp.resize()
+    sp.render()
+};
+
+const orbitCtrl = new OrbitControls(sp.camera, sp.renderer.domElement);
+orbitCtrl.addEventListener('change',function(){
+    sp.render();
+})
+orbitCtrl.enableZoom = false;
+orbitCtrl.enableDamping = true;
+orbitCtrl.dampingFactor = 0.06;
+
+!(function ani(){
+    orbitCtrl.update();
+    requestAnimationFrame(ani)
+})()*/
+
+/*贴图加载器*/
+function loadImg(url) {
+    const loader = new TextureLoader();
+    return new Promise((resolve)=>{
+        const texture = loader.load(url,function(){
+            resolve(texture)
+        });
+    })
+}
+</script>
+</body>
+</html>
+
